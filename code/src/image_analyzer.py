@@ -6,13 +6,9 @@ import google.generativeai as genai
 
 load_dotenv()
 
-genai.configure(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-model = genai.GenerativeModel(
-    "gemini-2.5-flash"
-)
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 def _estimate_repair_cost(claim_object, severity):
@@ -116,20 +112,32 @@ def _apply_result_contract(result, claim_object):
     result.setdefault("severity", "unknown")
     result.setdefault("valid_image", False)
     result.setdefault("quality_flags", [])
-    result["confidence_score"] = result.get("confidence_score") or _confidence_score(result)
+    result["confidence_score"] = result.get("confidence_score") or _confidence_score(
+        result
+    )
     fraud_risk = result.get("fraud_risk")
     if not fraud_risk or str(fraud_risk).strip().lower() == "unknown":
         fraud_risk = "Low"
     result["fraud_risk"] = fraud_risk
     result["fraud_risk_score"] = result.get("fraud_risk_score") or 24
     repair_estimate = result.get("repair_estimate")
-    if not repair_estimate or str(repair_estimate).strip().lower() in {"none", "unknown", "--"}:
+    if not repair_estimate or str(repair_estimate).strip().lower() in {
+        "none",
+        "unknown",
+        "--",
+    }:
         repair_estimate = _repair_guidance(claim_object, result)
     result["repair_estimate"] = repair_estimate
 
     estimated_cost = result.get("estimated_cost")
-    if not estimated_cost or str(estimated_cost).strip().lower() in {"none", "unknown", "--"}:
-        estimated_cost = _estimate_repair_cost(result.get("object_type"), result.get("severity"))
+    if not estimated_cost or str(estimated_cost).strip().lower() in {
+        "none",
+        "unknown",
+        "--",
+    }:
+        estimated_cost = _estimate_repair_cost(
+            result.get("object_type"), result.get("severity")
+        )
     result["estimated_cost"] = estimated_cost
     result["estimated_repair_cost"] = result["estimated_cost"]
     return result
@@ -195,16 +203,9 @@ Return ONLY:
 """
 
     try:
-        response = model.generate_content(
-            [prompt, image]
-        )
+        response = model.generate_content([prompt, image])
 
-        cleaned = (
-            response.text
-            .replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
+        cleaned = response.text.replace("```json", "").replace("```", "").strip()
 
         return _apply_result_contract(json.loads(cleaned), claim_object)
 
@@ -212,14 +213,15 @@ Return ONLY:
 
         print(f"Gemini Error: {e}")
 
-        return _apply_result_contract({
-            "object_type": claim_object,
-            "issue_type": "unknown",
-            "object_part": "unknown",
-            "damage_visible": False,
-            "severity": "unknown",
-            "valid_image": False,
-            "quality_flags": [
-                "manual_review_required"
-            ]
-        }, claim_object)
+        return _apply_result_contract(
+            {
+                "object_type": claim_object,
+                "issue_type": "unknown",
+                "object_part": "unknown",
+                "damage_visible": False,
+                "severity": "unknown",
+                "valid_image": False,
+                "quality_flags": ["manual_review_required"],
+            },
+            claim_object,
+        )

@@ -164,7 +164,10 @@ def generate_pdf_report(
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now()
-    pdf_path = REPORTS_DIR / f"claim_report_{timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}.pdf"
+    pdf_path = (
+        REPORTS_DIR
+        / f"claim_report_{timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}.pdf"
+    )
     styles = _build_styles()
 
     doc = SimpleDocTemplate(
@@ -203,10 +206,27 @@ def generate_pdf_report(
         _key_value_table(
             [
                 ("Claim Object", claim_object),
-                ("Claim Description", claim_description or "No claim description provided."),
+                (
+                    "Claim Description",
+                    claim_description or "No claim description provided.",
+                ),
                 ("Claim Status", claim_status or "Not assigned"),
-                ("AI Confidence", f"{confidence_score}%" if confidence_score is not None else "Not available"),
-                ("Fraud Risk Score", fraud_risk_score if fraud_risk_score is not None else "Not available"),
+                (
+                    "AI Confidence",
+                    (
+                        f"{confidence_score}%"
+                        if confidence_score is not None
+                        else "Not available"
+                    ),
+                ),
+                (
+                    "Fraud Risk Score",
+                    (
+                        fraud_risk_score
+                        if fraud_risk_score is not None
+                        else "Not available"
+                    ),
+                ),
                 ("Risk Level", risk_level or "Not available"),
                 ("Estimated Repair Cost", estimated_repair_cost or "Not available"),
             ],
@@ -219,7 +239,12 @@ def generate_pdf_report(
     if embedded_image:
         story.extend([embedded_image, Spacer(1, 8)])
     else:
-        story.append(Paragraph("Uploaded image could not be embedded in the PDF.", styles["BodyTextWrapped"]))
+        story.append(
+            Paragraph(
+                "Uploaded image could not be embedded in the PDF.",
+                styles["BodyTextWrapped"],
+            )
+        )
 
     story.extend(
         [
@@ -237,7 +262,10 @@ def generate_pdf_report(
                 styles,
             ),
             Paragraph("AI Explanation", styles["SectionHeading"]),
-            Paragraph(ai_explanation or "No additional explanation provided.", styles["BodyTextWrapped"]),
+            Paragraph(
+                ai_explanation or "No additional explanation provided.",
+                styles["BodyTextWrapped"],
+            ),
             Paragraph("Final AI Assessment", styles["SectionHeading"]),
             Paragraph(final_assessment, styles["BodyTextWrapped"]),
         ]

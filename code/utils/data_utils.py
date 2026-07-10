@@ -43,7 +43,11 @@ def column_summary(df: pd.DataFrame) -> pd.DataFrame:
         missing = int(series.isna().sum())
         unique = int(series.nunique(dropna=True))
         top = series.mode().iloc[0] if not series.mode().empty else "N/A"
-        freq = int(series.value_counts(dropna=True).iloc[0]) if not series.value_counts(dropna=True).empty else 0
+        freq = (
+            int(series.value_counts(dropna=True).iloc[0])
+            if not series.value_counts(dropna=True).empty
+            else 0
+        )
         summary.append(
             {
                 "column": column,
@@ -58,7 +62,9 @@ def column_summary(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(summary)
 
 
-def clean_dataset(df: pd.DataFrame, drop_duplicates: bool = True, fill_method: str | None = None) -> pd.DataFrame:
+def clean_dataset(
+    df: pd.DataFrame, drop_duplicates: bool = True, fill_method: str | None = None
+) -> pd.DataFrame:
     clean_df = df.copy()
     if drop_duplicates:
         clean_df = clean_df.drop_duplicates()

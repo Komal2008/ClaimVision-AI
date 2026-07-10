@@ -1,4 +1,5 @@
 ﻿import csv
+
 # -*- coding: utf-8 -*-
 import io
 import json
@@ -1287,7 +1288,9 @@ def render_sidebar():
         )
         st.divider()
         st.markdown("### Review Mode")
-        st.caption("Single-claim visual triage powered by the existing Gemini analyzer.")
+        st.caption(
+            "Single-claim visual triage powered by the existing Gemini analyzer."
+        )
         st.markdown(
             """
             <div class="badge-row">
@@ -1605,7 +1608,9 @@ def generate_repair_guidance(claim_object, result):
     return list(dict.fromkeys(guidance))
 
 
-def ensure_analysis_result_contract(result, claim_object=None, claim_history=None, user_claim=""):
+def ensure_analysis_result_contract(
+    result, claim_object=None, claim_history=None, user_claim=""
+):
     result = dict(result or {})
     result.setdefault("object_type", claim_object or "unknown")
     result.setdefault("issue_type", "unknown")
@@ -1637,23 +1642,41 @@ def ensure_analysis_result_contract(result, claim_object=None, claim_history=Non
     if not fraud_risk or str(fraud_risk).strip().lower() == "unknown":
         fraud_risk = risk_level_from_score(result["fraud_risk_score"])
     result["fraud_risk"] = fraud_risk
-    result["fraud_risk_reasons"] = risk_reasons or ["No historical risk factors identified"]
+    result["fraud_risk_reasons"] = risk_reasons or [
+        "No historical risk factors identified"
+    ]
 
     repair_estimate = result.get("repair_estimate")
-    if not repair_estimate or str(repair_estimate).strip().lower() in {"none", "unknown", "--"}:
+    if not repair_estimate or str(repair_estimate).strip().lower() in {
+        "none",
+        "unknown",
+        "--",
+    }:
         repair_estimate = generate_repair_guidance(claim_object, result)
     if isinstance(repair_estimate, str):
-        repair_items = [item.strip() for item in repair_estimate.split(";") if item.strip()]
+        repair_items = [
+            item.strip() for item in repair_estimate.split(";") if item.strip()
+        ]
     else:
-        repair_items = [str(item).strip() for item in repair_estimate if str(item).strip()]
+        repair_items = [
+            str(item).strip() for item in repair_estimate if str(item).strip()
+        ]
     result["repair_estimate"] = repair_items or ["Repair inspection recommended"]
 
     estimated_cost = result.get("estimated_cost") or result.get("estimated_repair_cost")
-    if not estimated_cost or str(estimated_cost).strip().lower() in {"none", "unknown", "--"}:
-        estimated_cost = estimate_repair_cost(result.get("object_type") or claim_object, result.get("severity"))
+    if not estimated_cost or str(estimated_cost).strip().lower() in {
+        "none",
+        "unknown",
+        "--",
+    }:
+        estimated_cost = estimate_repair_cost(
+            result.get("object_type") or claim_object, result.get("severity")
+        )
     result["estimated_cost"] = estimated_cost
     result["estimated_repair_cost"] = estimated_cost
-    result["ai_explanation"] = result.get("ai_explanation") or build_ai_explanation(result, claim_object, user_claim)
+    result["ai_explanation"] = result.get("ai_explanation") or build_ai_explanation(
+        result, claim_object, user_claim
+    )
 
     return result
 
@@ -1686,7 +1709,11 @@ def parse_risk_flags(raw_value):
     normalized = str(raw_value or "").strip()
     if not normalized:
         return "Unknown"
-    flags = [part.strip().lower() for part in normalized.replace(",", ";").split(";") if part.strip()]
+    flags = [
+        part.strip().lower()
+        for part in normalized.replace(",", ";").split(";")
+        if part.strip()
+    ]
     for level in ["high", "medium", "low"]:
         for flag in flags:
             if level in flag:
@@ -1701,7 +1728,10 @@ def average_severity_label(severity_counts):
     total = sum(severity_counts.values())
     if total == 0:
         return "Unknown"
-    score = sum(lookup.get(label, 0) * count for label, count in severity_counts.items()) / total
+    score = (
+        sum(lookup.get(label, 0) * count for label, count in severity_counts.items())
+        / total
+    )
     if score >= 2.5:
         return "High"
     if score >= 1.5:
@@ -1718,7 +1748,9 @@ def load_analytics_data():
             rows = [
                 row
                 for row in reader
-                if any(value.strip() for value in row.values() if isinstance(value, str))
+                if any(
+                    value.strip() for value in row.values() if isinstance(value, str)
+                )
                 and str(row.get("user_id", "")).strip().lower() != "user_id"
             ]
     except Exception:
@@ -1750,7 +1782,9 @@ def load_analytics_data():
     for row in rows:
         stats["total"] += 1
         claim_status = str(row.get("claim_status", "")).strip().lower()
-        normalized_status = status_map.get(claim_status, str(claim_status).replace("_", " ").title() or "Unknown")
+        normalized_status = status_map.get(
+            claim_status, str(claim_status).replace("_", " ").title() or "Unknown"
+        )
         if normalized_status == "Approved":
             stats["approved"] += 1
         if normalized_status == "Rejected":
@@ -1761,12 +1795,16 @@ def load_analytics_data():
         issue_type = str(row.get("issue_type", "Unknown")).strip().title() or "Unknown"
         severity = str(row.get("severity", "Unknown")).strip().title() or "Unknown"
         risk_flag = parse_risk_flags(row.get("risk_flags", ""))
-        object_type = str(row.get("claim_object", "Unknown")).strip().title() or "Unknown"
+        object_type = (
+            str(row.get("claim_object", "Unknown")).strip().title() or "Unknown"
+        )
         confidence = str(row.get("confidence_score", "")).strip()
 
         stats["damage_types"][issue_type] = stats["damage_types"].get(issue_type, 0) + 1
         stats["severity"][severity] = stats["severity"].get(severity, 0) + 1
-        stats["status"][normalized_status] = stats["status"].get(normalized_status, 0) + 1
+        stats["status"][normalized_status] = (
+            stats["status"].get(normalized_status, 0) + 1
+        )
         stats["fraud_risk"][risk_flag] = stats["fraud_risk"].get(risk_flag, 0) + 1
         stats["objects"][object_type] = stats["objects"].get(object_type, 0) + 1
 
@@ -1798,11 +1836,15 @@ def render_analytics_dashboard():
             "<div class='panel'><div class='panel-title'><span>AN</span>Analytics Summary</div>",
             unsafe_allow_html=True,
         )
-        st.info("No analytics data found in dataset/output.csv. Upload claims or refresh the dataset to populate the dashboard.")
+        st.info(
+            "No analytics data found in dataset/output.csv. Upload claims or refresh the dataset to populate the dashboard."
+        )
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
-    high_risk_pct = round((stats["high_risk"] / stats["total"]) * 100) if stats["total"] else 0
+    high_risk_pct = (
+        round((stats["high_risk"] / stats["total"]) * 100) if stats["total"] else 0
+    )
     avg_severity = average_severity_label(stats["severity"])
     top_damage = "No damage type available"
     if stats["damage_types"]:
@@ -1859,7 +1901,10 @@ def render_analytics_dashboard():
 
     chart_row = st.columns(2)
     with chart_row[0]:
-        st.markdown("<div class='panel'><div class='panel-title'><span>CS</span>Claim Status Distribution</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='panel'><div class='panel-title'><span>CS</span>Claim Status Distribution</div></div>",
+            unsafe_allow_html=True,
+        )
         status_names = list(stats["status"].keys())
         status_values = list(stats["status"].values())
         fig = px.bar(
@@ -1869,7 +1914,9 @@ def render_analytics_dashboard():
             labels={"x": "Status", "y": "Claims"},
             template="plotly_dark",
         )
-        fig.update_traces(marker_color="#22c55e", hovertemplate="%{x}: %{y}<extra></extra>")
+        fig.update_traces(
+            marker_color="#22c55e", hovertemplate="%{x}: %{y}<extra></extra>"
+        )
         fig.update_layout(
             height=360,
             margin=dict(l=0, r=0, t=24, b=0),
@@ -1879,7 +1926,10 @@ def render_analytics_dashboard():
         )
         st.plotly_chart(fig, use_container_width=True)
     with chart_row[1]:
-        st.markdown("<div class='panel'><div class='panel-title'><span>SD</span>Severity Distribution</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='panel'><div class='panel-title'><span>SD</span>Severity Distribution</div></div>",
+            unsafe_allow_html=True,
+        )
         severity_names = list(stats["severity"].keys())
         severity_values = list(stats["severity"].values())
         fig = px.pie(
@@ -1899,7 +1949,10 @@ def render_analytics_dashboard():
 
     second_row = st.columns(2)
     with second_row[0]:
-        st.markdown("<div class='panel'><div class='panel-title'><span>DT</span>Damage Type Distribution</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='panel'><div class='panel-title'><span>DT</span>Damage Type Distribution</div></div>",
+            unsafe_allow_html=True,
+        )
         damage_names = list(stats["damage_types"].keys())
         damage_values = list(stats["damage_types"].values())
         fig = px.bar(
@@ -1909,7 +1962,9 @@ def render_analytics_dashboard():
             labels={"x": "Damage Type", "y": "Claims"},
             template="plotly_dark",
         )
-        fig.update_traces(marker_color="#38bdf8", hovertemplate="%{x}: %{y}<extra></extra>")
+        fig.update_traces(
+            marker_color="#38bdf8", hovertemplate="%{x}: %{y}<extra></extra>"
+        )
         fig.update_layout(
             height=360,
             margin=dict(l=0, r=0, t=24, b=0),
@@ -1919,7 +1974,10 @@ def render_analytics_dashboard():
         )
         st.plotly_chart(fig, use_container_width=True)
     with second_row[1]:
-        st.markdown("<div class='panel'><div class='panel-title'><span>RD</span>Risk Distribution</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='panel'><div class='panel-title'><span>RD</span>Risk Distribution</div></div>",
+            unsafe_allow_html=True,
+        )
         fraud_names = list(stats["fraud_risk"].keys())
         fraud_values = list(stats["fraud_risk"].values())
         fig = px.bar(
@@ -1929,7 +1987,9 @@ def render_analytics_dashboard():
             labels={"x": "Risk Level", "y": "Claims"},
             template="plotly_dark",
         )
-        fig.update_traces(marker_color="#f59e0b", hovertemplate="%{x}: %{y}<extra></extra>")
+        fig.update_traces(
+            marker_color="#f59e0b", hovertemplate="%{x}: %{y}<extra></extra>"
+        )
         fig.update_layout(
             height=360,
             margin=dict(l=0, r=0, t=24, b=0),
@@ -1993,7 +2053,9 @@ def render_analytics_dashboard():
 
 def load_user_history(claim_object):
     try:
-        with (REPO_ROOT / "dataset" / "user_history.csv").open(newline="", encoding="utf-8") as csvfile:
+        with (REPO_ROOT / "dataset" / "user_history.csv").open(
+            newline="", encoding="utf-8"
+        ) as csvfile:
             reader = csv.DictReader(csvfile)
             rows = list(reader)
     except Exception:
@@ -2008,15 +2070,31 @@ def load_user_history(claim_object):
     return rows[0] if rows else None
 
 
-def build_export_payload(claim_object, user_claim, result, confidence_score, risk_score, cost_estimate, explanation):
-    result = ensure_analysis_result_contract(result, claim_object, st.session_state.get("claim_history"), user_claim)
+def build_export_payload(
+    claim_object,
+    user_claim,
+    result,
+    confidence_score,
+    risk_score,
+    cost_estimate,
+    explanation,
+):
+    result = ensure_analysis_result_contract(
+        result, claim_object, st.session_state.get("claim_history"), user_claim
+    )
     return {
         "claim_object": claim_object,
         "claim_description": user_claim,
         "analysis_timestamp": datetime.utcnow().isoformat() + "Z",
         "analysis_result": result,
-        "confidence_score": confidence_score if confidence_score is not None else result["confidence_score"],
-        "fraud_risk_score": risk_score if risk_score is not None else result["fraud_risk_score"],
+        "confidence_score": (
+            confidence_score
+            if confidence_score is not None
+            else result["confidence_score"]
+        ),
+        "fraud_risk_score": (
+            risk_score if risk_score is not None else result["fraud_risk_score"]
+        ),
         "risk_level": result["fraud_risk"],
         "repair_estimate": result["repair_estimate"],
         "estimated_repair_cost": cost_estimate or result["estimated_cost"],
@@ -2044,12 +2122,20 @@ def build_output_record(claim_object, user_claim, image_path, result):
         "user_claim": user_claim or "",
         "claim_object": claim_object or result.get("object_type", "unknown"),
         "evidence_standard_met": evidence_met,
-        "evidence_standard_met_reason": "Sufficient visual evidence" if evidence_met else "Insufficient visual evidence",
+        "evidence_standard_met_reason": (
+            "Sufficient visual evidence"
+            if evidence_met
+            else "Insufficient visual evidence"
+        ),
         "risk_flags": result.get("fraud_risk", "Low"),
         "issue_type": result.get("issue_type", "unknown"),
         "object_part": result.get("object_part", "unknown"),
         "claim_status": claim_status,
-        "claim_status_justification": "Damage visible in image" if result.get("damage_visible") else "Claimed damage not observed",
+        "claim_status_justification": (
+            "Damage visible in image"
+            if result.get("damage_visible")
+            else "Claimed damage not observed"
+        ),
         "supporting_image_ids": Path(str(image_path or "")).stem,
         "valid_image": result.get("valid_image", False),
         "severity": result.get("severity", "unknown"),
@@ -2198,7 +2284,9 @@ def set_workflow_step(step_name, progress, message=None):
     st.session_state["workflow_message"] = message or f"{step_name}..."
 
 
-def complete_workflow(message="The AI evidence review workflow completed successfully."):
+def complete_workflow(
+    message="The AI evidence review workflow completed successfully.",
+):
     for step in st.session_state["workflow_steps"]:
         step["status"] = "completed"
     st.session_state["analysis_running"] = False
@@ -2220,8 +2308,12 @@ def render_workflow_card(message=None):
     steps = st.session_state["workflow_steps"]
     progress = st.session_state["workflow_progress"]
     completed = st.session_state["workflow_completed"]
-    active_step = next((step["label"] for step in steps if step.get("status") == "running"), None)
-    display_message = message or st.session_state.get("workflow_message", "AI analysis workflow status.")
+    active_step = next(
+        (step["label"] for step in steps if step.get("status") == "running"), None
+    )
+    display_message = message or st.session_state.get(
+        "workflow_message", "AI analysis workflow status."
+    )
 
     status_items = []
     for index, step in enumerate(steps, start=1):
@@ -2240,7 +2332,7 @@ def render_workflow_card(message=None):
             status_text = "Waiting"
 
         status_items.append(
-            f"<div class=\"workflow-step {state}\">"
+            f'<div class="workflow-step {state}">'
             f"  <div class='workflow-step-left'>"
             f"    <div class='workflow-step-number'>{icon}</div>"
             f"    <div class='workflow-step-title'>{escape(step.get('label', 'Step'))}</div>"
@@ -2257,9 +2349,14 @@ def render_workflow_card(message=None):
             "</div>"
         )
 
-    active_copy = f"<div class='workflow-active'>Current step: {escape(active_step)}</div>" if active_step else ""
+    active_copy = (
+        f"<div class='workflow-active'>Current step: {escape(active_step)}</div>"
+        if active_step
+        else ""
+    )
     fill_state = "running" if st.session_state.get("analysis_running") else ""
-    html_content = textwrap.dedent(f"""
+    html_content = textwrap.dedent(
+        f"""
         <div class="workflow-card">
             {status_banner}
             <div class="workflow-header">
@@ -2276,7 +2373,8 @@ def render_workflow_card(message=None):
                 {''.join(status_items)}
             </div>
         </div>
-        """)
+        """
+    )
     st.markdown(html_content, unsafe_allow_html=True)
 
 
@@ -2297,7 +2395,9 @@ def render_workflow_history():
         render_workflow_card()
 
 
-def render_legacy_ai_progress_panel(message, current_step=None, progress=0, completed=False):
+def render_legacy_ai_progress_panel(
+    message, current_step=None, progress=0, completed=False
+):
     step_names = [
         "Uploading Evidence",
         "Extracting Claim",
@@ -2324,7 +2424,7 @@ def render_legacy_ai_progress_panel(message, current_step=None, progress=0, comp
             status_text = "Pending"
 
         status_items.append(
-            f"<div class=\"workflow-step {state}\">"
+            f'<div class="workflow-step {state}">'
             f"  <div class='workflow-step-left'>"
             f"    <div class='workflow-step-number'>{icon}</div>"
             f"    <div class='workflow-step-title'>{escape(name)}</div>"
@@ -2341,7 +2441,8 @@ def render_legacy_ai_progress_panel(message, current_step=None, progress=0, comp
             "</div>"
         )
 
-    html_content = textwrap.dedent(f"""
+    html_content = textwrap.dedent(
+        f"""
         <div class="workflow-card">
             {status_banner}
             <div class="workflow-header">
@@ -2355,7 +2456,8 @@ def render_legacy_ai_progress_panel(message, current_step=None, progress=0, comp
                 {''.join(status_items)}
             </div>
         </div>
-        """)
+        """
+    )
     st.markdown(html_content, unsafe_allow_html=True)
 
 
@@ -2382,7 +2484,7 @@ def render_legacy_workflow_history():
             status_text = "Pending"
 
         status_items.append(
-            f"<div class=\"workflow-step {state}\">"
+            f'<div class="workflow-step {state}">'
             f"  <div class='workflow-step-left'>"
             f"    <div class='workflow-step-number'>{icon}</div>"
             f"    <div class='workflow-step-title'>{escape(step.get('label', 'Step'))}</div>"
@@ -2399,7 +2501,8 @@ def render_legacy_workflow_history():
             "</div>"
         )
 
-    html_content = textwrap.dedent(f"""
+    html_content = textwrap.dedent(
+        f"""
         <div class="workflow-card">
             {status_banner}
             <div class="workflow-header">
@@ -2413,7 +2516,8 @@ def render_legacy_workflow_history():
                 {''.join(status_items)}
             </div>
         </div>
-        """)
+        """
+    )
     st.markdown(html_content, unsafe_allow_html=True)
 
 
@@ -2868,7 +2972,9 @@ def render_metrics(result, uploaded_files, claim_object, user_claim):
 
     metric_cols = st.columns(4)
     with metric_cols[0]:
-        render_metric_card("📦", "Object Type", str(claim_object).title(), "Selected claim category", 1)
+        render_metric_card(
+            "📦", "Object Type", str(claim_object).title(), "Selected claim category", 1
+        )
     with metric_cols[1]:
         render_metric_card(
             "📷",
@@ -2878,9 +2984,13 @@ def render_metrics(result, uploaded_files, claim_object, user_claim):
             2,
         )
     with metric_cols[2]:
-        render_metric_card("📋", "Review Status", claim_status, "Conversation context", 3)
+        render_metric_card(
+            "📋", "Review Status", claim_status, "Conversation context", 3
+        )
     with metric_cols[3]:
-        render_metric_card("🤖", "AI Review", analyzer_status, f"Image valid: {quality_status}", 4)
+        render_metric_card(
+            "🤖", "AI Review", analyzer_status, f"Image valid: {quality_status}", 4
+        )
 
 
 def render_claim_summary(claim_object, user_claim, result):
@@ -2889,7 +2999,9 @@ def render_claim_summary(claim_object, user_claim, result):
     part_label = escape(str(result_value(result, "object_part", "Pending")))
     severity_label = escape(str(result_value(result, "severity", "Pending")))
     decision_label = escape(str(infer_claim_status(result)))
-    description_text = escape(user_claim if user_claim.strip() else "No claim description entered yet.")
+    description_text = escape(
+        user_claim if user_claim.strip() else "No claim description entered yet."
+    )
 
     st.markdown(
         """
@@ -2946,7 +3058,9 @@ def render_latest_claim_summary(latest_claim):
         return
 
     result = latest_claim.get("result") or {}
-    claim_object = latest_claim.get("claim_object", result.get("object_type", "Unknown"))
+    claim_object = latest_claim.get(
+        "claim_object", result.get("object_type", "Unknown")
+    )
     user_claim = latest_claim.get("user_claim", "")
     severity = result.get("severity", "unknown")
     confidence_score = result.get("confidence_score", 0)
@@ -3012,22 +3126,32 @@ def render_dashboard_insights(stats, claim_object=None, user_claim=None, result=
     chart_cols = st.columns(2)
     with chart_cols[0]:
         st.markdown("### Severity distribution")
-        severity_names = list(stats['severity'].keys())
-        severity_values = list(stats['severity'].values())
+        severity_names = list(stats["severity"].keys())
+        severity_values = list(stats["severity"].values())
         if severity_names:
             fig = px.pie(values=severity_values, names=severity_names, hole=0.5)
-            fig.update_layout(height=320, margin=dict(l=0, r=0, t=20, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            fig.update_layout(
+                height=320,
+                margin=dict(l=0, r=0, t=20, b=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+            )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No analyzed severity data available.")
     with chart_cols[1]:
         st.markdown("### Claims by status")
-        status_names = list(stats['status'].keys())
-        status_values = list(stats['status'].values())
+        status_names = list(stats["status"].keys())
+        status_values = list(stats["status"].values())
         if status_names:
             fig = px.bar(x=status_names, y=status_values, text=status_values)
-            fig.update_layout(height=320, margin=dict(l=0, r=0, t=20, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            fig.update_traces(marker_color='#38bdf8')
+            fig.update_layout(
+                height=320,
+                margin=dict(l=0, r=0, t=20, b=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+            )
+            fig.update_traces(marker_color="#38bdf8")
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No analyzed status data available.")
@@ -3058,7 +3182,7 @@ def render_image_panel(uploaded_files, latest_image_path=None):
                 thumb_html = (
                     '<div class="image-thumb">'
                     f'<img src="data:image/png;base64,{base64.b64encode(uploaded.getvalue()).decode()}" />'
-                    '</div>'
+                    "</div>"
                 )
                 st.markdown(thumb_html, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
@@ -3116,17 +3240,26 @@ def render_analysis_panel(result, claim_object=None, final_decision=None):
         else status_badge("No quality flags", "ok")
     )
 
-    confidence_score = result.get("confidence_score", st.session_state.get("confidence_score"))
+    confidence_score = result.get(
+        "confidence_score", st.session_state.get("confidence_score")
+    )
     risk_score = result.get("fraud_risk_score", st.session_state.get("risk_score"))
     risk_level = result.get("fraud_risk", st.session_state.get("risk_level"))
     cost_estimate = result.get("estimated_cost", st.session_state.get("cost_estimate"))
-    repair_estimate = result.get("repair_estimate", st.session_state.get("repair_estimate", []))
+    repair_estimate = result.get(
+        "repair_estimate", st.session_state.get("repair_estimate", [])
+    )
     explanation = result.get("ai_explanation", st.session_state.get("explanation"))
-    risk_reasons = result.get("fraud_risk_reasons", st.session_state.get("risk_reasons", []))
+    risk_reasons = result.get(
+        "fraud_risk_reasons", st.session_state.get("risk_reasons", [])
+    )
 
     if not isinstance(repair_estimate, list):
         repair_estimate = [str(repair_estimate)]
-    repair_text = "; ".join(item for item in repair_estimate if item) or "Repair inspection recommended"
+    repair_text = (
+        "; ".join(item for item in repair_estimate if item)
+        or "Repair inspection recommended"
+    )
     if confidence_score is None:
         confidence_score = generate_confidence_score(result)
     if risk_score is None:
@@ -3137,7 +3270,11 @@ def render_analysis_panel(result, claim_object=None, final_decision=None):
         cost_estimate = estimate_repair_cost(claim_object, severity)
 
     risk_score = risk_score or 0
-    risk_class = 'risk-low' if risk_score <= 40 else 'risk-medium' if risk_score <= 70 else 'risk-high'
+    risk_class = (
+        "risk-low"
+        if risk_score <= 40
+        else "risk-medium" if risk_score <= 70 else "risk-high"
+    )
 
     st.markdown(
         f"""
@@ -3299,7 +3436,9 @@ def main():
                 clear_analysis_state()
                 st.experimental_rerun()
 
-        claim_object = st.sidebar.selectbox("Claim object", ["car", "laptop", "package"])
+        claim_object = st.sidebar.selectbox(
+            "Claim object", ["car", "laptop", "package"]
+        )
         user_claim = st.sidebar.text_area(
             "Claim description",
             placeholder="Example: The front bumper was scratched after delivery.",
@@ -3333,7 +3472,9 @@ def main():
             with left_col:
                 render_latest_claim_summary(latest_claim)
             with right_col:
-                latest_image_path = latest_claim.get("image_path") if latest_claim else None
+                latest_image_path = (
+                    latest_claim.get("image_path") if latest_claim else None
+                )
                 render_image_panel(uploaded_files, latest_image_path=latest_image_path)
 
         if active_section == "Review Workspace":
@@ -3356,7 +3497,9 @@ def main():
                 if not uploaded_files:
                     st.info("Upload an evidence image before running analysis.")
                 elif not user_claim.strip():
-                    st.warning("Add a claim description for a stronger reviewer workflow.")
+                    st.warning(
+                        "Add a claim description for a stronger reviewer workflow."
+                    )
                 else:
                     st.success("Ready for AI evidence review.")
                 st.markdown(
@@ -3380,7 +3523,9 @@ def main():
                 status_slot = st.empty()
                 loader_slot = st.empty()
                 progress_slot = st.empty()
-                status_slot.markdown(verification_badge("Processing"), unsafe_allow_html=True)
+                status_slot.markdown(
+                    verification_badge("Processing"), unsafe_allow_html=True
+                )
                 with loader_slot.container():
                     render_workflow_card()
                 progress_bar = run_verification_progress(progress_slot, loader_slot)
@@ -3396,9 +3541,13 @@ def main():
                         user_claim=user_claim,
                     )
                     store_analysis_summary(completed_result)
-                    remember_latest_claim(claim_object, user_claim, saved_image_path, completed_result)
+                    remember_latest_claim(
+                        claim_object, user_claim, saved_image_path, completed_result
+                    )
                     append_analysis_to_output_csv(
-                        build_output_record(claim_object, user_claim, saved_image_path, completed_result)
+                        build_output_record(
+                            claim_object, user_claim, saved_image_path, completed_result
+                        )
                     )
                     st.session_state["analysis_completed"] = True
 
@@ -3450,7 +3599,9 @@ def main():
                         st.session_state["report_error"] = str(exc)
                         st.session_state["report_success"] = False
                         progress_bar.progress(100, text="Analysis Complete")
-                        complete_workflow("AI analysis completed, but the PDF report could not be generated.")
+                        complete_workflow(
+                            "AI analysis completed, but the PDF report could not be generated."
+                        )
                 st.rerun()
 
             if st.session_state["analysis_result"]:
@@ -3468,7 +3619,11 @@ def main():
 
         if active_section == "Report":
             render_claim_summary(claim_object, user_claim, result)
-            render_analysis_panel(result, claim_object=claim_object, final_decision=infer_claim_status(result))
+            render_analysis_panel(
+                result,
+                claim_object=claim_object,
+                final_decision=infer_claim_status(result),
+            )
 
         if st.session_state["analysis_completed"]:
             st.markdown("### Export")
@@ -3476,7 +3631,9 @@ def main():
                 st.success("PDF report generated successfully.")
                 render_pdf_workflow()
             if st.session_state["report_error"]:
-                st.warning(f"PDF report could not be generated: {st.session_state['report_error']}")
+                st.warning(
+                    f"PDF report could not be generated: {st.session_state['report_error']}"
+                )
 
             pdf_path = st.session_state["pdf_report_path"]
             if pdf_path and os.path.exists(pdf_path):
