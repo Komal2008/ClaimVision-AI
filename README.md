@@ -411,7 +411,7 @@ This project is licensed under the **MIT License**.
 
 ## Komal Pandey
 
-**Engineering Student | AI & Machine Learning Enthusiast | Open Source Contributor**
+**Engineering Student | AI & Machine Learning Enthusiast | Open Source Contributor |  Contribute as Project Admin**
 
 * GitHub: https://github.com/Komal2008
 
