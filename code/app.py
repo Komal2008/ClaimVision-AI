@@ -5,6 +5,7 @@ import json
 import os
 import textwrap
 import time
+import hmac
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -50,7 +51,7 @@ def ensure_auth_config():
                     "admin": {
                         "email": "admin@claimvision.ai",
                         "name": "Admin",
-                        "password": "$2b$12$rGtJKo3o4t5EtOPW9LTbKu34HLnk5F5EJjy/RPv/BWT6eRmGMDgAG",
+                        "password": "admin123",
                     }
                 }
             },
@@ -74,6 +75,193 @@ def load_auth_config():
 def save_auth_config(config):
     with open(AUTH_CONFIG_PATH, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
+
+
+def clear_authentication():
+    st.session_state["authenticated"] = False
+    st.session_state["auth_name"] = ""
+    st.session_state["auth_username"] = ""
+    st.session_state["authentication_status"] = None
+    st.session_state.pop("chat_messages", None)
+
+
+def render_login_page():
+    """Render the only unauthenticated view."""
+    st.markdown(
+        """
+        <style>
+        .login-shell { max-width: 1180px; margin: 4vh auto; }
+        .login-shell > div[data-testid="stHorizontalBlock"] {
+            align-items: stretch; gap: 3.5rem;
+        }
+        .login-shell > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            flex: 1 1 0; width: 50%; max-width: 50%; min-width: 0;
+        }
+        .login-brand, .login-shell > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:has([data-testid="stTextInput"]) {
+            min-height: 600px; height: 100%; box-sizing: border-box;
+            border: 1px solid rgba(148,163,184,.2);
+            background: rgba(15,23,42,.82);
+            box-shadow: 0 24px 70px rgba(0,0,0,.3);
+            border-radius: 24px; padding: 2.5rem;
+        }
+        .login-brand { display:flex; flex-direction:column; justify-content:flex-start; background:
+            radial-gradient(circle at 80% 20%, rgba(99,102,241,.25), transparent 35%),
+            rgba(15,23,42,.55); }
+        .login-headline-row { display:flex; align-items:flex-start; margin-top:1.1rem; }
+        .login-headline-row h1 { margin-top:0; }
+        .login-brand h1 { color:#f8fafc; font-size:clamp(2.5rem,5vw,4.5rem); line-height:1.05; }
+        .login-brand h1 span { color:#60a5fa; }
+        .login-brand p, .login-card p { color:#94a3b8; line-height:1.6; }
+        .login-feature { color:#dbeafe; margin:.9rem 0; font-weight:700; }
+        .login-eyebrow { color:#60a5fa; font-size:.72rem; font-weight:800; letter-spacing:.12em; }
+        .login-shell > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:has([data-testid="stTextInput"]) {
+            background:
+                linear-gradient(145deg, rgba(56,189,248,.08), transparent 42%),
+                rgba(15,23,42,.9);
+        }
+        .login-brand-logo {
+            display: block; width: 60px; height: 60px; object-fit: cover;
+            margin: .35rem 1.35rem 0 0; border-radius: 15px; flex: 0 0 auto;
+            border: 1px solid rgba(56,189,248,.35);
+            box-shadow: 0 0 30px rgba(56,189,248,.2);
+        }
+        .login-card-heading h2 { color:#f8fafc; margin:.35rem 0; }
+        .login-card-heading p { margin-bottom:1.35rem; }
+        .login-shell [data-testid="stForm"] { border:0; padding:0; background:transparent; }
+        .login-shell [data-testid="stTextInput"] { margin-top:.35rem; }
+        .login-shell [data-testid="stCheckbox"] { margin-top:.25rem; }
+        .login-shell [data-testid="stButton"] button {
+            min-height: 2.9rem; border-radius: 11px;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+        .login-shell [data-testid="stButton"] button:hover {
+            transform: translateY(-1px); box-shadow: 0 12px 28px rgba(56,189,248,.15);
+            border-color: rgba(96,165,250,.65);
+        }
+        .login-google [data-testid="stButton"] button {
+            color: #202124; background: #fff; border-color: #d9dce1;
+            font-weight: 700;
+        }
+        .login-google [data-testid="stButton"] button::before {
+            content: "G"; display: inline-block; margin-right: .55rem;
+            font-size: 1.08rem; font-weight: 900;
+            background: conic-gradient(from 35deg, #4285f4 0 25%, #34a853 25% 48%, #fbbc05 48% 68%, #ea4335 68% 84%, #4285f4 84%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .login-google [data-testid="stButton"] button:hover {
+            background: #f8f9fa; border-color: #b8c0cc;
+            box-shadow: 0 8px 18px rgba(15,23,42,.16);
+        }
+        .login-links {
+            display: flex; align-items: center; justify-content: center;
+            gap: .75rem; margin-top: .55rem; color: #64748b;
+        }
+        .login-links [data-testid="stButton"] button {
+            min-height: auto; padding: .2rem .1rem; border: 0;
+            background: transparent; color: #67b7ff; box-shadow: none;
+            font-size: .82rem; font-weight: 700;
+        }
+        .login-links [data-testid="stButton"] button:hover {
+            transform: none; border: 0; background: transparent;
+            color: #b9e5ff; box-shadow: none;
+        }
+        .login-link-separator { color: #475569; font-size: .85rem; }
+        @media (max-width: 900px) {
+            .login-shell { margin: 1rem auto; }
+            .login-shell > div[data-testid="stHorizontalBlock"] { gap: 1rem; }
+            .login-shell > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+                width: 100%; max-width: 100%;
+            }
+            .login-brand, .login-shell > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:has([data-testid="stTextInput"]) {
+                min-height: auto; padding: 1.5rem;
+            }
+            .login-brand h1 { font-size: clamp(2.3rem, 9vw, 3.8rem); }
+            .login-headline-row { align-items:flex-start; }
+            .login-headline-row .login-brand-logo { width:50px; height:50px; margin-right:.8rem; }
+                .login-links { gap: .35rem; }
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="login-shell">', unsafe_allow_html=True)
+    brand_col, card_col = st.columns([1, 1], gap="large")
+    with brand_col:
+        logo_data_uri = get_logo_data_uri()
+        logo_markup = (
+            f'<img class="login-brand-logo" src="{logo_data_uri}" alt="ClaimVision AI logo" />'
+            if logo_data_uri
+            else ""
+        )
+        st.markdown(
+            f"""
+            <section class="login-brand">
+                <div class="login-headline-row">
+                    {logo_markup}
+                    <h1>Intelligent Claims.<br><span>Faster Decisions.</span></h1>
+                </div>
+                <p>Transform insurance claim verification with AI-powered image analysis,
+                intelligent document processing, and faster claim decisions.</p>
+                <div class="login-feature">✓ AI-Powered Claim Analysis</div>
+                <div class="login-feature">✓ Damage Detection &amp; Verification</div>
+                <div class="login-feature">✓ Faster Insurance Decisions</div>
+            </section>
+            """,
+            unsafe_allow_html=True,
+        )
+    with card_col:
+        st.markdown(
+            '<div class="login-card-heading"><div class="login-eyebrow">SECURE WORKSPACE</div>'
+            '<h2>Welcome back</h2><p>Sign in to your ClaimVision AI account</p></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="login-google">', unsafe_allow_html=True)
+        if st.button("Continue with Google", key="google_login", use_container_width=True):
+            st.info("Google sign-in is not configured yet. Please use email/password.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("**OR CONTINUE WITH EMAIL**")
+        with st.form("premium_login", clear_on_submit=False):
+            username = st.text_input(
+                "Username", placeholder="komal"
+            )
+            password = st.text_input(
+                "Password", type="password", placeholder="komal123"
+            )
+            remember_me = st.checkbox("Remember me", value=True)
+            submitted = st.form_submit_button("Sign In  →", use_container_width=True)
+        st.markdown('<div class="login-links">', unsafe_allow_html=True)
+        link_left, link_separator, link_right = st.columns([1, 0.12, 1], gap="small")
+        with link_left:
+            if st.button("Forgot password?", key="forgot_password", use_container_width=True):
+                st.info("Password recovery is not configured yet. Please contact your administrator.")
+        with link_separator:
+            st.markdown('<div class="login-link-separator">|</div>', unsafe_allow_html=True)
+        with link_right:
+            if st.button("Create an account", key="create_account", use_container_width=True):
+                st.info("Account registration is not configured yet.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        if submitted:
+            if not username.strip():
+                st.error("Please enter your username.")
+                return
+            if not password:
+                st.error("Please enter your password.")
+                return
+            with st.spinner("Authenticating..."):
+                # Temporary local demo credentials; replace with production auth later.
+                valid_demo = hmac.compare_digest(username.strip().lower(), "komal") and hmac.compare_digest(
+                    password, "komal123"
+                )
+                if not valid_demo:
+                    st.error("Invalid email or password. Please try again.")
+                    return
+            st.session_state["authenticated"] = True
+            st.session_state["auth_name"] = username
+            st.session_state["auth_username"] = username
+            st.session_state["authentication_status"] = True
+            st.session_state["remember_me"] = remember_me
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def validate_uploaded_file(uploaded_file):
@@ -3320,74 +3508,21 @@ def save_uploaded_image(uploaded_file):
 def main():
     configure_page()
     inject_css()
+
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+    if "auth_name" not in st.session_state:
+        st.session_state["auth_name"] = ""
+    if "auth_username" not in st.session_state:
+        st.session_state["auth_username"] = ""
+    if "authentication_status" not in st.session_state:
+        st.session_state["authentication_status"] = None
+
+    if not st.session_state.get("authenticated", False):
+        render_login_page()
+        st.stop()
+
     render_chatbot_widget()
-
-    # --- AUTHENTICATION ---
-    if stauth is None:
-        st.error(
-            "**streamlit-authenticator** is required. "
-            "Install it with: `pip install streamlit-authenticator`"
-        )
-        return
-
-    if "auth_mode" not in st.session_state:
-        st.session_state["auth_mode"] = "login"
-
-    config = load_auth_config()
-    authenticator = stauth.Authenticate(
-        config["credentials"],
-        config["cookie"]["name"],
-        config["cookie"]["key"],
-        config["cookie"]["expiry_days"],
-    )
-
-    if st.session_state["auth_mode"] == "register":
-        try:
-            reg_result = authenticator.register_user(
-                location="main", captcha=False, key="register_user"
-            )
-            if reg_result:
-                status, username, name = reg_result
-                if status == "New user registered":
-                    st.success(
-                        f"Account created for **{username}**! You can now log in."
-                    )
-                    save_auth_config(config)
-                    st.session_state["auth_mode"] = "login"
-                    st.rerun()
-                elif status:
-                    st.info(status)
-        except Exception as e:
-            st.error(str(e))
-
-        if st.button("← Back to login", key="back_to_login_btn"):
-            st.session_state["auth_mode"] = "login"
-            st.rerun()
-        return
-
-    auth_result = authenticator.login(location="main", key="login")
-    if auth_result:
-        name, authentication_status, username = auth_result
-        st.session_state["auth_name"] = name
-        st.session_state["auth_username"] = username
-        st.session_state["authentication_status"] = authentication_status
-    else:
-        authentication_status = st.session_state.get("authentication_status")
-
-    if authentication_status is None:
-        st.markdown("---")
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.markdown(f"### Welcome to {APP_TITLE}")
-            st.markdown(f"*{APP_SUBTITLE}*")
-        with col2:
-            if st.button("Register new account", key="goto_register_btn"):
-                st.session_state["auth_mode"] = "register"
-                st.rerun()
-        return
-    elif not authentication_status:
-        return
-
     # --- SESSION STATE INIT ---
     init_state = [
         ("analysis_result", None),
@@ -3416,8 +3551,10 @@ def main():
 
     active_section = render_sidebar()
 
-    st.sidebar.markdown(f"👤 **{st.session_state['auth_name']}**")
-    authenticator.logout("Logout", "sidebar", key="logout_btn")
+    st.sidebar.markdown(f"👤 **{st.session_state.get('auth_name', '')}**")
+    if st.sidebar.button("Logout", key="logout_btn", use_container_width=True):
+        clear_authentication()
+        st.rerun()
     if active_section in ("Overview", "Review Workspace", "AI Analysis", "Report"):
         render_mobile_brand_bar()
         render_hero()
