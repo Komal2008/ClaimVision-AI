@@ -1,4 +1,4 @@
-﻿import csv
+import csv
 # -*- coding: utf-8 -*-
 import io
 import json
@@ -3501,6 +3501,46 @@ def main():
                 )
 
             if analyze_clicked and uploaded_files:
+
+                saved_image_path = save_uploaded_image(uploaded_files[0])
+                start_workflow()
+                st.session_state["analysis_completed"] = False
+                st.session_state["pdf_report_path"] = None
+                st.session_state["report_error"] = None
+                st.session_state["report_success"] = False
+                st.session_state["is_analyzing"] = True
+                st.session_state["analyze_saved_image_path"] = saved_image_path
+                st.session_state["bg_analysis_status"] = "idle"
+
+            if st.session_state.get("is_analyzing", False):
+                saved_image_path = st.session_state.get("analyze_saved_image_path")
+                
+                status_slot = st.empty()
+                loader_slot = st.empty()
+                progress_slot = st.empty()
+                
+                bg_status = st.session_state.get("bg_analysis_status", "idle")
+                
+                if bg_status == "idle":
+                    st.session_state["bg_analysis_status"] = "running"
+                    
+                    def _bg_task():
+                        try:
+                            res = analyze_image(saved_image_path, claim_object)
+                            st.session_state["raw_result"] = res
+                            st.session_state["bg_analysis_status"] = "success"
+                        except Exception as e:
+                            st.session_state["bg_analysis_error"] = str(e)
+                            st.session_state["bg_analysis_status"] = "error"
+                            
+                    import threading
+                    from streamlit.runtime.scriptrunner import add_script_run_ctx
+                    
+                    t = threading.Thread(target=_bg_task)
+                    add_script_run_ctx(t)
+                    t.start()
+                    
+
                 file_errors = validate_uploaded_file(uploaded_files[0])
                 if file_errors:
                     for err in file_errors:
@@ -3517,13 +3557,37 @@ def main():
                     status_slot = st.empty()
                     loader_slot = st.empty()
                     progress_slot = st.empty()
+
                     status_slot.markdown(verification_badge("Processing"), unsafe_allow_html=True)
                     with loader_slot.container():
                         render_workflow_card()
                     progress_bar = run_verification_progress(progress_slot, loader_slot)
 
+                    
+                    st.rerun()
+
+                elif bg_status == "running":
+                    status_slot.markdown(verification_badge("Processing"), unsafe_allow_html=True)
+                    with loader_slot.container():
+                        render_ai_progress_panel("Gemini is reviewing the uploaded evidence...", current_step="Verifying Evidence", progress=72)
+                    progress_bar = progress_slot.progress(72, text="Gemini is reviewing the uploaded evidence...")
+                    
+                    import time
+                    time.sleep(1.0)
+                    st.rerun()
+
+                elif bg_status == "error":
+                    st.error(f"Error during analysis: {st.session_state.get('bg_analysis_error')}")
+                    st.session_state["is_analyzing"] = False
+                    st.session_state["bg_analysis_status"] = "idle"
+
+                elif bg_status == "success":
+                    raw_result = st.session_state["raw_result"]
+
+
                     with st.spinner("Analyzing image..."):
                         raw_result = analyze_image(saved_image_path, claim_object)
+
                     claim_history = load_user_history(claim_object)
                     st.session_state["claim_history"] = claim_history
                     completed_result = ensure_analysis_result_contract(
@@ -3538,9 +3602,15 @@ def main():
                         build_output_record(claim_object, user_claim, saved_image_path, completed_result)
                     )
                     st.session_state["analysis_completed"] = True
+
+                    st.session_state["is_analyzing"] = False
+                    st.session_state["bg_analysis_status"] = "idle"
+                    
+
                     st.session_state["analyzing"] = False
 
                 if st.session_state["analysis_completed"]:
+
                     try:
                         loader_slot.empty()
                         with loader_slot.container():
@@ -3549,7 +3619,7 @@ def main():
                                 current_step="Generating Report",
                                 progress=86,
                             )
-                        progress_bar.progress(86, text="Generating report...")
+                        progress_bar = progress_slot.progress(86, text="Generating report...")
                         update_analysis_state(
                             "Report generation",
                             86,
@@ -3582,15 +3652,23 @@ def main():
                         loader_slot.empty()
                         with loader_slot.container():
                             render_workflow_card("Analysis Complete")
+                        import time
                         time.sleep(0.35)
                     except Exception as exc:
                         st.session_state["pdf_report_path"] = None
                         st.session_state["report_error"] = str(exc)
                         st.session_state["report_success"] = False
-                        progress_bar.progress(100, text="Analysis Complete")
+                        if 'progress_bar' not in locals():
+                            progress_bar = progress_slot.progress(100, text="Analysis Complete")
+                        else:
+                            progress_bar.progress(100, text="Analysis Complete")
                         complete_workflow("AI analysis completed, but the PDF report could not be generated.")
+
+                    
+
                         st.session_state["analyzing"] = False
                 st.rerun()
+
 
             if st.session_state["analysis_result"]:
                 update_analysis_state(
