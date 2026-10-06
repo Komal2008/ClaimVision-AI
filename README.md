@@ -129,6 +129,7 @@ Every decision includes:
 
 ---
 
+
 # 🏗️ System Architecture
 
 ```text
@@ -163,6 +164,20 @@ Every decision includes:
 ```
 
 ---
+
+## AI Analysis Pipeline
+
+The AI analysis workflow has been refactored into a modular plugin architecture.
+
+Pipeline
+
+AnalysisPipeline
+├── ImageQualityAnalyzer
+├── DamageDetector
+├── FraudDetector
+└── SeverityEstimator
+
+New analyzers can be added by implementing the Analyzer interface and registering them in AnalysisPipeline.
 
 # 🔄 Application Workflow
 

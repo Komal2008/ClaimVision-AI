@@ -3,9 +3,9 @@ import pandas as pd
 import time
 
 from src.claim_extractor import extract_claim
-from src.image_analyzer import analyze_image
 from src.evidence_checker import check_evidence
 from src.decision_engine import decide_claim
+from src.pipeline import AnalysisPipeline
 
 claims = pd.read_csv("../dataset/claims.csv")
 history_df = pd.read_csv("../dataset/user_history.csv")
@@ -34,8 +34,10 @@ for _, row in claims.head(5).iterrows():
     
     if not os.path.exists(full_path):
         continue
+    
+    pipeline = AnalysisPipeline()
 
-    image_result = analyze_image(
+    image_result = pipeline.run(
         full_path,
         row["claim_object"]
     )
